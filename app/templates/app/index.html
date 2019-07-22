@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title>SANKEY Experiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/s2.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+</head>
+
+<body>
+    <svg id="canvas" width="740" height="500" style="background-color: rgb(238, 238, 238); border: 1px solid rgb(51, 51, 51);"></svg>
+
+
+    <table class="t01" id="t01" style="width:25%">
+        <tr>
+            <th>Node Name</th>
+            <th>Node Color</th>
+            <th><input type="button" class="n-add-row" value="+" style="display: block; margin: 0 auto;"></th>
+        </tr>
+        <tr class='node-row'>
+            <td><input class='node-name' name="node-name" type="text" placeholder="Node Name" size="25%" /></td>
+            <td><input class='node-color' name="node-color" type="text" placeholder="Node Group" size="25%" /></td>
+            <td><input type="button" class="n-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+
+        <tr class='node-row'>
+            <td><input class='node-name' name="node-name" type="text" value="Taxes" placeholder="Node Name" size="25%" /></td>
+            <td><input class='node-color' name="node-color" type="text" value="yellow" placeholder="Node Group" size="25%" /></td>
+            <td><input type="button" class="n-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+
+
+        <tr class='node-row' id="r1">
+            <td><input class='node-name' name="node-name" type="text" value="Wages" placeholder="Node Name" size="25%" /></td>
+            <td><input class='node-color' name="node-color" type="text" value="blue" placeholder="Node Group" size="25%" /></td>
+            <td><input type="button" class="n-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+        <tr class='node-row' id='r2'>
+            <td><input class='node-name' name="node-name" type="text" value="Income" placeholder="Node Name" size="25%" /></td>
+            <td><input class='node-color' name="node-color" type="text" value="pink" placeholder="Node Group" size="25%" /></td>
+            <td><input type="button" class="n-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+    </table>
+
+    <table class="t02" id="t02" style="width:25%">
+        <tr>
+            <th>Source Node</th>
+            <th>Target Node</th>
+            <th>Amount</th>
+            <th><input type="button" class="l-add-row" value="+" style="display: block; margin: 0 auto;"></th>
+        </tr>
+        <tr class='link-row'>
+            <td><input class='link-source' name="link-source" type="text" placeholder="Link Source" size="25%" /></td>
+            <td><input class='link-target' name="link-target" type="text" placeholder="Link Target" size="25%" /></td>
+            <td><input class='link-value' name="link-value" type="text" placeholder="Link Value" size="25%" /></td>
+            <td><input type="button" class="l-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+
+        <tr class='link-row' id="lr1">
+            <td><input class='link-source' name="link-source" type="text" value="Wages" placeholder="Link Source" size="25%" /></td>
+            <td><input class='link-target' name="link-target" type="text" value="Taxes" placeholder="Link Target" size="25%" /></td>
+            <td><input class='link-value' name="link-value" type="text" value="10" placeholder="Link Value" size="25%" /></td>
+            <td><input type="button" class="l-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+
+        <tr class='link-row' id="lr1">
+            <td><input class='link-source' name="link-source" type="text" value="Wages" placeholder="Link Source" size="25%" /></td>
+            <td><input class='link-target' name="link-target" type="text" value="Income" placeholder="Link Target" size="25%" /></td>
+            <td><input class='link-value' name="link-value" type="text" value="10" placeholder="Link Value" size="25%" /></td>
+            <td><input type="button" class="l-delete-row" value="-" style="display: block; margin: 0 auto;"></td>
+        </tr>
+    </table>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://unpkg.com/d3@5.4.0/dist/d3.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.7.1/build/d3-sankey.js"></script>
+    <!-- <script src="/static/js/sankey.js"></script> -->
+
+    <script>
+
+
+    var SCRIPT_ROOT = {{ request.script_root| tojson | safe }};
+    var BATCH_DATA = SCRIPT_ROOT + "/_batch_data";
+
+    var COLORS = ['blue', 'yellow', 'green', 'orange', 'pink', 'black']
+
+    var all_nodes = new Set()
+    var all_links = 0
+
+    // var nodes = []
+    // var links = []
+    // nodes.push(['A1', 'green'])
+    // nodes.push(['B1', 'blue'])
+    // nodes.push(['C1', 'yellow'])
+    // nodes.push(['C2', 'pink'])
+
+
+    // links.push(['A1', 'B1', 300])
+    // links.push(['B1', 'C1', 100])
+    // links.push(['B1', 'C2', 150])
+
+    $(document).on('click', '.n-add-row', function() { 
+        node_name = '<input class="node-name" name="node-name" type="text" placeholder="Node Name" size="25%" />';
+        node_color = '<input class="node-color" name="node-color" type="text" placeholder="Node Color" size="25%" />';
+        node_button = '<input type="button" class="n-delete-row" value="-" style="display: block; margin: 0 auto;">';
+        $('.t01 tr:first').after('<tr class="node-row"><td>' + node_name + '</td><td>' + node_color + '</td><td>' + node_button + '</td></tr>');
+    });
+
+    $(document).on('click', '.n-delete-row', function(){
+        $(this).parent().parent().remove();
+        redraw();
+    });
+
+    $(document).on('click', '.l-add-row', function() { 
+        link_source = '<input class="link-source" name="link-source" type="text" placeholder="Link Source" size="25%" />';
+        link_target = '<input class="link-target" name="link-target" type="text" placeholder="Link Target" size="25%" />';
+        link_value = '<input class="link-value" name="link-value" type="text" placeholder="Link Value" size="25%" />';
+        link_button = '<input type="button" class="l-delete-row" value="-" style="display: block; margin: 0 auto;">'
+        $('.t02 tr:first').after('<tr class="link-row"><td>' + link_source + '</td><td>' + link_target + '</td><td>' + link_value + '</td><td>' + link_button + '</td></tr>');
+    });
+
+    $(document).on('click', '.l-delete-row', function(){
+        $(this).parent().parent().remove();
+        redraw();
+    });
+
+    // ----------------------------------------------------------------
+
+    $(document).on('keyup', '.node-row', function() {
+        var node_row = $(this)
+        var node_name = node_row.find("input[name='node-name']");
+        var node_color = node_row.find("input[name='node-color']");
+
+        if(node_name.val() == "" && node_color.val() == "") {
+            node_name.parent().css({'background-color': 'white'});
+            node_color.parent().css({'background-color': 'white'});
+        }
+        else {
+            if(node_name.val() == "") {
+              node_name.parent().css({'background-color': 'blue'});
+            }
+            else {
+              node_name.parent().css({'background-color': 'white'});
+            }
+
+            if(node_color.val() == "") {
+              node_color.parent().css({'background-color': 'blue'});
+            }
+            else {
+              node_color.parent().css({'background-color': 'white'});
+            }
+        }
+        if(!COLORS.includes(node_color.val())) {
+            console.log("This color is not valid");
+        }
+        else if(node_name.val() != "") {
+            // Node is valid
+            redraw();
+            // alert("good")
+
+        }
+    });
+
+    $(document).on('keyup', '.link-row', function() {
+        var link_row = $(this)
+        var link_source = link_row.find("input[name='link-source']");
+        var link_target = link_row.find("input[name='link-target']");
+        var link_value = link_row.find("input[name='link-value']");
+
+        if(link_source.val() == "" && link_target.val() == "" && link_value.val() == "") {
+            link_source.parent().css({'background-color': 'white'});
+            link_target.parent().css({'background-color': 'white'});
+            link_value.parent().css({'background-color': 'white'});
+        }
+        else {
+            if(link_source.val() == "") {
+                link_source.parent().css({'background-color': 'blue'});
+            }
+            else {
+                link_source.parent().css({'background-color': 'white'});
+            }
+
+            if(link_target.val() == "") {
+                link_target.parent().css({'background-color': 'blue'});
+            }
+            else {
+                link_target.parent().css({'background-color': 'white'});
+            }
+
+            if(link_value.val() == "") {
+                link_value.parent().css({'background-color': 'blue'});
+            }
+            else {
+                link_value.parent().css({'background-color': 'white'});
+            }
+        }
+
+      // TODO: only send if source and key in nodes
+
+      redraw();
+
+    });
+
+
+    redraw();
+
+
+    function redraw() {
+
+        all_nodes.clear();
+        var node_list = []
+        $('input[name="node-name"]').map(function() {
+              var parent = $(this).parents(".node-row");
+              if( parent.find("input[name='node-color']").val() != "" && $(this).val() != "") {
+
+                  // return [[$(this).val(), parent.sfind("input[name='node-color']").val()]];
+                  node_list.push({id: $(this).val(), 
+                          color: parent.find("input[name='node-color']").val()});
+                  all_nodes.add($(this).val());
+              }
+        }).get();
+        console.log("NL: " + node_list);
+
+        var link_list = []
+        $('input[name="link-source"]').map(function() {
+            var parent = $(this).parents(".link-row");
+            if(parent.find("input[name='link-target']").val() != "" && parent.find("input[name='link-value']").val() != "" && $(this).val() != "") {
+                // return [$(this).val(), parent.find("input[name='link-target']").val(), parent.find("input[name='link-value']").val()];
+                
+                if(all_nodes.has($(this).val())) {
+                    link_list.push({source: $(this).val(), 
+                            target: parent.find("input[name='link-target']").val(), 
+                            value: parent.find("input[name='link-value']").val()});
+                }
+                else {
+                    console.log("nooope");
+                }
+            }
+        }).get();
+        console.log("LL: " + link_list);
+
+        // if(all_nodes.has(link_list[i]) && all_nodes.has(link_list[i + 1])) {
+        // if(node_list.length > 0) {
+        // if(all_links > 0) {
+
+        draw(node_list, link_list);
+
+
+    }
+
+    function draw(node_list, link_list) {
+        
+
+
+        $.ajax({url: BATCH_DATA, type:"POST", data: JSON.stringify({nodes: node_list, links: link_list}),
+                contentType: 'application/json; charset=utf-8', success: function(d) { 
+                  // console.log(data);
+                  data = d.result;
+                  console.log(data);
+                  // sank();
+                  // flag = true;
+
+                  d3.selectAll("svg > *").remove();
+                  $("#canvas").html("");
+               
+
+        // batch_data(nodes, links);
+    
+            const margin = 10;
+            const width = 740;
+            const height = 500;
+            const svgBackground = "#eee";
+            const svgBorder = "1px solid #333";
+            const nodeWidth = 24;
+            const nodePadding = 16;
+            const nodeOpacity = 0.8;
+            const linkOpacity = 0.5;
+            const nodeDarkenFactor = 0.3;
+            const nodeStrokeWidth = 4;
+            const arrow = "\u2192";
+            const nodeAlignment = d3.sankeyCenter;
+            const colorScale = d3.interpolateRainbow;
+            const path = d3.sankeyLinkHorizontal();
+            let initialMousePosition = {};
+            let initialNodePosition = {};
+          
+            function addGradientStop(gradients, offset, fn) {
+                return gradients.append("stop")
+                                .attr("offset", offset)
+                                .attr("stop-color", fn);
+            }
+          
+            function color(index) {
+                let ratio = index / (data.nodes.length - 1.0);
+                return colorScale(ratio);
+            }
+            
+            function darkenColor(color, factor) {
+                return d3.color(color).darker(factor)
+            }
+            
+            function getGradientId(d) {
+                return `gradient_${d.source.id}_${d.target.id}`;
+            }
+            
+            function getMousePosition(e) {
+                e = e || d3.event;
+                return {
+                    x: e.x,
+                    y: e.y
+                };
+            }
+            
+            function getNodePosition(node) {
+                return {
+                    x: +node.attr("x"),
+                    y: +node.attr("y"),
+                    width: +node.attr("width"),
+                    height: +node.attr("height")
+                };
+            }
+            
+            function moveNode(node, position) {
+                position.width = position.width || +(node.attr("width"));
+                position.height = position.height || +(node.attr("height"));
+                if (position.x < 0) {
+                    position.x = 0;
+                }
+                if (position.y < 0) {
+                    position.y = 0;
+                }
+                if (position.x + position.width > graphSize[0]) {
+                    position.x = graphSize[0] - position.width;
+                }
+                if (position.y + position.height > graphSize[1]) {
+                    position.y = graphSize[1] - position.height;
+                }
+                node.attr("x", position.x)
+                    .attr("y", position.y);
+                let nodeData = node.data()[0];
+                nodeData.x0 = position.x
+                nodeData.x1 = position.x + position.width;
+                nodeData.y0 = position.y;
+                nodeData.y1 = position.y + position.height;
+                sankey.update(graph);
+                svgLinks.selectAll("linearGradient")
+                        .attr("x1", d => d.source.x1)
+                        .attr("x2", d => d.target.x0);
+                svgLinks.selectAll("path")
+                        .attr("d", path);
+            }
+            
+            function onDragDragging() {
+                let currentMousePosition = getMousePosition(d3.event);
+                let delta = {
+                    x: currentMousePosition.x - initialMousePosition.x,
+                    y: currentMousePosition.y - initialMousePosition.y
+                };
+                let thisNode = d3.select(this);
+                let newNodePosition = {
+                    x: initialNodePosition.x + delta.x,
+                    y: initialNodePosition.y + delta.y,
+                    width: initialNodePosition.width,
+                    height: initialNodePosition.height
+                };
+                moveNode(thisNode, newNodePosition);        
+            }
+            
+            function onDragEnd() {
+                let node = d3.select(this)
+                            .attr("stroke-width", 0);
+            }
+            
+            function onDragStart() {
+                let node = d3.select(this)
+                            .raise()
+                            .attr("stroke-width", nodeStrokeWidth);
+                setInitialNodePosition(node);
+                initialNodePosition = getNodePosition(node);
+                initialMousePosition = getMousePosition(d3.event);
+            }
+            
+            function reduceUnique(previous, current) {
+                if (previous.indexOf(current) < 0) {
+                    previous.push(current);
+                }
+                return previous;
+            }
+            
+            function setInitialMousePosition(e) {
+                initialMousePosition.x = e.x;
+                initialMousePosition.y = e.y;
+            }
+            
+            function setInitialNodePosition(node) {
+                let pos = node ? getNodePosition(node) : { x: 0, y: 0, width: 0, height: 0 };
+                initialNodePosition.x = pos.x;
+                initialNodePosition.y = pos.y;
+                initialNodePosition.width = pos.width;
+                initialNodePosition.height = pos.height;
+            }
+                
+            function sumValues(previous, current) {
+                previous += current;
+                return previous;
+            }
+            
+            // data = batch_data(nodes, links);
+            // const data = {
+            //     nodes: [
+            //         {id: "A1", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "A2", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "A3", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "B1", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "B2", color: 'rgba(250, 225, 50, 1)'},
+            //         {id: "B3", color: 'rgba(250, 225, 50, 1)'},
+            //         {id: "B4", color: 'rgba(250, 225, 50, 1)'},
+            //         {id: "C1", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "C2", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "C3", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "D1", color: 'rgba(26, 170, 170, 1)'},
+            //         {id: "D2", color: 'rgba(26, 170, 170, 1)'}
+            //     ],
+            //     links: [
+            //         { source: "A1", target: "B1", value: 27 },
+            //         { source: "A1", target: "B2", value:  9 },
+            //         { source: "A2", target: "B2", value:  5 },
+            //         { source: "A2", target: "B3", value: 11 },
+            //         { source: "A3", target: "B2", value: 12 },
+            //         { source: "A3", target: "B4", value:  7 },
+            //         { source: "B1", target: "C1", value: 13 },
+            //         { source: "B1", target: "C2", value: 10 },
+            //         { source: "B4", target: "C2", value:  5 },
+            //         { source: "B4", target: "C3", value:  2 },
+            //         { source: "B1", target: "D1", value:  4 },
+            //         { source: "C3", target: "D1", value:  1 },
+            //         { source: "C3", target: "D2", value:  1 }
+            //     ]
+            // }
+          
+            const svg = d3.select("#canvas")
+                          .attr("width", width)
+                          .attr("height", height)
+                          .style("background-color", svgBackground)
+                          .style("border", svgBorder)
+                          .append("g")
+                          .attr("transform", `translate(${margin},${margin})`);
+            
+            // Define our sankey instance.
+            const graphSize = [width - 2*margin, height - 2*margin];
+            const sankey = d3.sankey()
+                            .size(graphSize)
+                            .nodeId(d => d.id)
+                            .nodeWidth(nodeWidth)
+                            .nodePadding(nodePadding)
+                            .nodeAlign(nodeAlignment);
+            let graph = sankey(data);
+            
+            // Loop through the nodes. Set additional properties to make a few things
+            // easier to deal with later.
+            graph.nodes.forEach(node => {
+                let fillColor = node.color;
+                node.fillColor = node.color;
+                node.strokeColor = darkenColor(fillColor, nodeDarkenFactor);
+                node.width = node.x1 - node.x0;
+                node.height = node.y1 - node.y0;
+            });
+            
+            // Build the links.
+            let svgLinks = svg.append("g")
+                              .classed("links", true)
+                              .selectAll("g")
+                              .data(graph.links)
+                              .enter()
+                              .append("g");
+            let gradients = svgLinks.append("linearGradient")
+                                    .attr("gradientUnits", "userSpaceOnUse")
+                                    .attr("x1", d => d.source.x1)
+                                    .attr("x2", d => d.target.x0)
+                                    .attr("id", d => getGradientId(d));
+            // addGradientStop(gradients, 0.0, d => color(d.source.index));
+            addGradientStop(gradients, 0.0, d => d.source.color);
+            // addGradientStop(gradients, 1.0, d => color(d.target.index));
+            addGradientStop(gradients, 1.0, d => d.target.color);
+            svgLinks.append("path")
+                    .classed("link", true)
+                    .attr("d", path)
+                    .attr("fill", "none")
+                    .attr("stroke", d => `url(#${getGradientId(d)})`)
+                    .attr("stroke-width", d => Math.max(1.0, d.width))
+                    .attr("stroke-opacity", linkOpacity);
+            
+            // Add hover effect to links.
+            svgLinks.append("title")
+                    .text(d => `${d.source.id} ${arrow} ${d.target.id}\n${d.value}`);
+          
+            let svgNodes = svg.append("g")
+                              .classed("nodes", true)
+                              .selectAll("rect")
+                              .data(graph.nodes)
+                              .enter()
+                              .append("rect")
+                              .classed("node", true)
+                              .attr("x", d => d.x0)
+                              .attr("y", d => d.y0)
+                              .attr("width", d => d.width)
+                              .attr("height", d => d.height)
+                              .attr("fill", d => d.fillColor)
+                              .attr("opacity", nodeOpacity)
+                              .attr("stroke", d => d.strokeColor)
+                              .attr("stroke-width", 0);
+            
+            let nodeDepths = graph.nodes
+                .map(n => n.depth)
+                .reduce(reduceUnique, []);
+            
+            nodeDepths.forEach(d => {
+                let nodesAtThisDepth = graph.nodes.filter(n => n.depth === d);
+                let numberOfNodes = nodesAtThisDepth.length;
+                let totalHeight = nodesAtThisDepth
+                                    .map(n => n.height)
+                                    .reduce(sumValues, 0);
+                let whitespace = graphSize[1] - totalHeight;
+                let balancedWhitespace = whitespace / (numberOfNodes + 1.0);
+                console.log("depth", d, "total height", totalHeight, "whitespace", whitespace, "balanced whitespace", balancedWhitespace);
+            });
+            
+            // Add hover effect to nodes.
+            svgNodes.append("title")
+                    .text(d => `${d.id}\n${d.value} unit(s)`);
+                    
+            svgNodes.call(d3.drag()
+                            .on("start", onDragStart)
+                            .on("drag", onDragDragging)
+                            .on("end", onDragEnd));
+          
+            console.log("sankey1.js loaded.");
+    
+
+    }
+    });
+    }
+
+    // sank();
+
+    </script>
+</body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
