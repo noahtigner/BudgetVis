@@ -2,7 +2,9 @@
 
 A Full Stack Web App that anaylyzes the 'flow' of your expenses and visualizes your budget.
 
-Uses Sankey flow diagrams.
+Constructs Sankey flow diagrams.
+
+![BudgetVis](budgetvis.png)
 
 ## Use
 
