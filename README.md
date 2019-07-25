@@ -10,9 +10,9 @@ Uses Sankey flow diagrams.
 ## Development
 
 Dependencies: 
-- Flask
-- D3.js
-- JQuery
+- Flask 
+- D3.js 
+- JQuery 
 
 ## Author
 
